@@ -30,6 +30,7 @@ func (b *BooksHandler) GetBooks(w http.ResponseWriter, r *http.Request) {
 
 	pageParam := r.URL.Query().Get("page")
 	limitParam := r.URL.Query().Get("limit")
+
 	ctx := r.Context()
 	page := 1
 	limit := 10

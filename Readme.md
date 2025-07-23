@@ -146,7 +146,6 @@ curl -X POST "http://localhost:8080/books" \
     "title": "Sample Book Title",
     "author": "Sample Author",
     "genre": "Fiction",
-    "isbn": "978-0123456789",
     "published_year": 2023
   }'
 ```
