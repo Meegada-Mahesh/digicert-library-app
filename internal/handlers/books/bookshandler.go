@@ -25,6 +25,8 @@ func InitBooksHandler(ctx context.Context, db *database.Database) *BooksHandler 
 	}
 }
 func (b *BooksHandler) GetBooks(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	pageParam := r.URL.Query().Get("page")
 	limitParam := r.URL.Query().Get("limit")
 	ctx := r.Context()
@@ -40,106 +42,138 @@ func (b *BooksHandler) GetBooks(w http.ResponseWriter, r *http.Request) {
 
 	books, err := b.db.GetBooks(ctx, limit, offset)
 	if err != nil {
-		http.Error(w, "Error in fetching books from library", http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Failed to fetch books"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	response := map[string]interface{}{
-		"data":  books,
-		"page":  page,
-		"limit": limit,
-	}
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(models.BooksResponse{
+		Data:  books,
+		Page:  page,
+		Limit: limit,
+	})
 }
 
 func (b *BooksHandler) GetBookByID(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	vars := mux.Vars(r)
 	id := vars["id"]
 	ctx := r.Context()
 	if _, err := uuid.Parse(id); err != nil {
-		http.Error(w, "Invalid book ID format", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Invalid book ID format"})
 		return
 	}
 
 	book, err := b.db.GetBookByID(ctx, id)
 	if err != nil {
-		http.Error(w, "Error in fetching books from library", http.StatusBadRequest)
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Book not found"})
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Error in fetching books from library"})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	response := map[string]interface{}{
-		"book": book,
-	}
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(models.BookResponse{Book: book})
 }
 
 func (b *BooksHandler) CreateBook(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	var newBook models.Book
 	if err := json.NewDecoder(r.Body).Decode(&newBook); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Invalid request payload"})
 		return
 	}
 
+	// Validate required fields
 	if newBook.Title == "" {
-		http.Error(w, "Title is required", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Title is required"})
+		return
+	}
+	if newBook.Author == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Author is required"})
 		return
 	}
 
 	_, err := b.db.CreateBook(r.Context(), newBook)
 	if err != nil {
-		http.Error(w, "Couldn't create book", http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Couldn't create book"})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": "Book created"})
+	json.NewEncoder(w).Encode(models.MessageResponse{Message: "Book created"})
 }
 
 func (b *BooksHandler) UpdateBook(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	var updateBook models.Book
 	if err := json.NewDecoder(r.Body).Decode(&updateBook); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Invalid request payload"})
 		return
 	}
 	vars := mux.Vars(r)
 	id := vars["id"]
 
 	if _, err := uuid.Parse(id); err != nil {
-		http.Error(w, "Invalid book ID format", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Invalid book ID format"})
+		return
+	}
+
+	// Validate required fields for update
+	if updateBook.Title == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Title is required"})
+		return
+	}
+	if updateBook.Author == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Author is required"})
 		return
 	}
 
 	resultMsg, err := b.db.UpdateBook(r.Context(), id, updateBook)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			http.Error(w, "Book not found", http.StatusNotFound)
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Book not found"})
 			return
 		}
-		http.Error(w, "Failed to update book", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Failed to update book"})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": resultMsg})
+	json.NewEncoder(w).Encode(models.MessageResponse{Message: resultMsg})
 }
 
 func (b *BooksHandler) DeleteBook(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 	id := vars["id"]
 
 	if _, err := uuid.Parse(id); err != nil {
-		http.Error(w, "Invalid book ID format", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Invalid book ID format"})
 		return
 	}
 
 	resultMsg, err := b.db.DeleteBook(r.Context(), id)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			http.Error(w, "Book not found", http.StatusNotFound)
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Book not found"})
 			return
 		}
-		http.Error(w, "Failed to delete book", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Failed to delete book"})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": resultMsg})
+	json.NewEncoder(w).Encode(models.MessageResponse{Message: resultMsg})
 }

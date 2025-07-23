@@ -9,34 +9,36 @@ import (
 	"github.com/google/uuid"
 )
 
+// CRUD functions using the helper functions
 func (d *Database) GetBooks(ctx context.Context, limit, offset int) ([]models.Book, error) {
-	// move DB queries to DB folders
 	books := []models.Book{}
-	query := "SELECT id, title FROM books LIMIT ? OFFSET ?"
-	rows, err := d.Conn.QueryContext(context.Background(), query, limit, offset)
+	query := "SELECT " + getBookColumnsString() + " FROM books LIMIT ? OFFSET ?"
+	rows, err := d.Conn.QueryContext(ctx, query, limit, offset)
 	if err != nil {
 		return books, err
 	}
 	defer rows.Close()
+
 	for rows.Next() {
-		var book models.Book
-		if err := rows.Scan(&book.ID, &book.Title); err != nil {
+		book, err := scanBookRows(rows)
+		if err != nil {
 			return books, err
 		}
 		books = append(books, book)
 	}
+
 	if err := rows.Err(); err != nil {
 		return books, err
 	}
-
-	return books, err
+	return books, nil
 }
 
 func (d *Database) GetBookByID(ctx context.Context, id string) (models.Book, error) {
-	query := "select * from books where id = ?"
-	row := d.Conn.QueryRowContext(context.Background(), query, id)
-	var book models.Book
-	if err := row.Scan(&book.ID, &book.Title); err != nil {
+	query := "SELECT " + getBookColumnsString() + " FROM books WHERE id = ?"
+	row := d.Conn.QueryRowContext(ctx, query, id)
+
+	book, err := scanBookRow(row)
+	if err != nil {
 		if err == sql.ErrNoRows {
 			return book, err
 		}
@@ -46,9 +48,11 @@ func (d *Database) GetBookByID(ctx context.Context, id string) (models.Book, err
 }
 
 func (d *Database) CreateBook(ctx context.Context, newBook models.Book) (string, error) {
-	id := uuid.New() // Generate a new UUID for the book
-	query := "INSERT INTO books (id, title) VALUES (?, ?)"
-	_, err := d.Conn.ExecContext(context.Background(), query, id, newBook.Title)
+	id := uuid.New()
+	query := "INSERT INTO books (" + getInsertColumnsString() + ") VALUES (" + getInsertPlaceholders() + ")"
+	values := getInsertValues(id, newBook)
+
+	_, err := d.Conn.ExecContext(ctx, query, values...)
 	if err != nil {
 		// Check for duplicate entry error (MySQL error code 1062)
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok && mysqlErr.Number == 1062 {
@@ -56,16 +60,18 @@ func (d *Database) CreateBook(ctx context.Context, newBook models.Book) (string,
 		}
 		return "", err
 	}
-
 	return "Book Inserted", nil
 }
 
 func (d *Database) UpdateBook(ctx context.Context, id string, updatedBook models.Book) (string, error) {
-	query := "UPDATE books SET title = ? WHERE id = ?"
-	result, err := d.Conn.ExecContext(context.Background(), query, updatedBook.Title, id)
+	query := "UPDATE books SET " + getUpdateColumnsString() + " WHERE id = ?"
+	values := getUpdateValues(updatedBook, id)
+
+	result, err := d.Conn.ExecContext(ctx, query, values...)
 	if err != nil {
 		return "", err
 	}
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return "", err
@@ -78,7 +84,7 @@ func (d *Database) UpdateBook(ctx context.Context, id string, updatedBook models
 
 func (d *Database) DeleteBook(ctx context.Context, id string) (string, error) {
 	query := "DELETE FROM books WHERE id = ?"
-	result, err := d.Conn.ExecContext(context.Background(), query, id)
+	result, err := d.Conn.ExecContext(ctx, query, id)
 	if err != nil {
 		return "", err
 	}

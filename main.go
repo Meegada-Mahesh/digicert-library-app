@@ -4,6 +4,7 @@ import (
 	"context"
 	"digicert-library-app/internal/database"
 	"digicert-library-app/internal/middleware"
+	"embed"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,11 +13,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pressly/goose/v3"
+
 	"digicert-library-app/internal/handlers/books"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 )
+
+var embedMigrations embed.FS
 
 func main() {
 
@@ -25,6 +30,18 @@ func main() {
 	db, err := database.NewDBConnection()
 	if err != nil {
 		log.Fatalf("Error in DB connection error: %v", err)
+	}
+
+	//setting up goose
+
+	// run sql scripts before starting the api
+	goose.SetBaseFS(embedMigrations)
+	if err := goose.SetDialect("postgres"); err != nil {
+		log.Fatal("error in setting postgres dialect", err)
+	}
+
+	if err := goose.Up(db.Conn, "db/migrations"); err != nil {
+		log.Fatal("error in setting up migrations", err)
 	}
 
 	// initialize the books handler
@@ -66,5 +83,3 @@ func main() {
 	defer cancel()
 	srv.Shutdown(ctx)
 }
-
-// Write a READMe file
