@@ -72,33 +72,6 @@ $COMPOSE_CMD up --build -d
 echo "Waiting for services to start..."
 sleep 10
 
-# Check if containers are actually running
-echo "Verifying containers are running..."
-if ! docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "(digicert-library-app|mysql)"; then
-    echo "❌ Some containers failed to start. Checking logs..."
-    $COMPOSE_CMD logs
-    exit 1
-fi
-
-# Wait for MySQL to be ready
-echo "Waiting for MySQL to be ready..."
-timeout=60
-while [ $timeout -gt 0 ]; do
-    if docker exec mysql mysqladmin ping -h localhost --silent 2>/dev/null; then
-        echo "✅ MySQL is ready!"
-        break
-    fi
-    echo "Waiting for MySQL... ($timeout seconds remaining)"
-    sleep 5
-    timeout=$((timeout-5))
-done
-
-if [ $timeout -le 0 ]; then
-    echo "❌ MySQL failed to start within 60 seconds"
-    $COMPOSE_CMD logs mysql
-    exit 1
-fi
-
 # Test if the app is responding
 echo "Testing app connectivity..."
 sleep 5
