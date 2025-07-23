@@ -23,9 +23,6 @@ func NewDBConnection() (*Database, error) {
 }
 
 func connect() (*sql.DB, error) {
-
-	// Move DB logic to internal folder
-
 	_ = godotenv.Load()
 
 	dbUser := os.Getenv("DB_USER")
@@ -33,19 +30,22 @@ func connect() (*sql.DB, error) {
 	dbHost := os.Getenv("DB_HOST")
 	dbName := os.Getenv("DB_NAME")
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s", dbUser, dbPassword, dbHost, dbName)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?parseTime=true", dbUser, dbPassword, dbHost, dbName)
+	log.Printf("Connecting to database with DSN: %s:****@tcp(%s:3306)/%s", dbUser, dbHost, dbName)
+
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		log.Fatalf("Database connection failed: %v", err)
+		log.Printf("Database connection failed: %v", err)
 		return nil, err
 	}
-	defer db.Close()
 
+	// Test the connection immediately
 	err = db.Ping()
 	if err != nil {
-		log.Fatalf("Database ping failed: %v", err)
+		log.Printf("Database ping failed: %v", err)
+		return nil, err
 	}
-	fmt.Println("Database connection established successfully")
 
+	log.Println("Database connection and ping successful")
 	return db, nil
 }

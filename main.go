@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"digicert-library-app/internal/database"
 	"digicert-library-app/internal/middleware"
 	"embed"
@@ -21,7 +22,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
+//go:embed db/migrations/*.sql
 var embedMigrations embed.FS
+
+func waitForDatabase(db *sql.DB, maxRetries int) error {
+	for i := 0; i < maxRetries; i++ {
+		if err := db.Ping(); err == nil {
+			log.Println("Database connection established")
+			return nil
+		}
+		log.Printf("Waiting for database... attempt %d/%d", i+1, maxRetries)
+		time.Sleep(2 * time.Second)
+	}
+	return fmt.Errorf("failed to connect to database after %d attempts", maxRetries)
+}
 
 func main() {
 
@@ -31,13 +45,35 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error in DB connection error: %v", err)
 	}
+	defer db.Conn.Close()
+
+	// Set connection pool settings to prevent connection drops
+	db.Conn.SetMaxOpenConns(25)
+	db.Conn.SetMaxIdleConns(25)
+	db.Conn.SetConnMaxLifetime(5 * time.Minute)
+
+	log.Println("Database connection created, testing connectivity...")
+
+	// Wait for database to be ready with better error handling
+	if err := waitForDatabase(db.Conn, 30); err != nil {
+		log.Printf("Database connection test failed: %v", err)
+		log.Println("Attempting to reconnect...")
+
+		// Try to reconnect once more
+		db, err = database.NewDBConnection()
+		if err != nil {
+			log.Fatalf("Database reconnection failed: %v", err)
+		}
+
+		if err := waitForDatabase(db.Conn, 10); err != nil {
+			log.Fatalf("Database not ready after reconnection: %v", err)
+		}
+	}
 
 	//setting up goose
-
-	// run sql scripts before starting the api
 	goose.SetBaseFS(embedMigrations)
-	if err := goose.SetDialect("postgres"); err != nil {
-		log.Fatal("error in setting postgres dialect", err)
+	if err := goose.SetDialect("mysql"); err != nil {
+		log.Fatal("error in setting mysql dialect", err)
 	}
 
 	if err := goose.Up(db.Conn, "db/migrations"); err != nil {

@@ -1,0 +1,13 @@
+-- +goose Up
+CREATE TABLE IF NOT EXISTS books (
+    id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    title VARCHAR(255) NOT NULL,
+    author VARCHAR(255),
+    genre VARCHAR(20),
+    published_year INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- +goose Down
+DROP TABLE IF EXISTS books;

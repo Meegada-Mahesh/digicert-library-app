@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -104,6 +105,7 @@ func (b *BooksHandler) CreateBook(w http.ResponseWriter, r *http.Request) {
 	_, err := b.db.CreateBook(r.Context(), newBook)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("Error is", err)
 		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Couldn't create book"})
 		return
 	}

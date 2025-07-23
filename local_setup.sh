@@ -10,6 +10,23 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
+# Check if user is in docker group
+if ! groups $USER | grep -q docker; then
+    echo "⚠️  Adding user to docker group..."
+    sudo usermod -aG docker $USER
+    echo "✅ User added to docker group. Please log out and log back in, then run this script again."
+    exit 0
+fi
+
+# sudo aa-remove-unknown
+
+# Test docker permissions
+if ! docker ps &>/dev/null; then
+    echo "❌ Docker permission issue detected. Trying to fix..."
+    sudo chmod 666 /var/run/docker.sock
+    newgrp docker
+fi
+
 # Check for Docker Compose (support both docker-compose and docker compose)
 if command -v docker-compose &> /dev/null; then
     COMPOSE_CMD="docker-compose"
@@ -18,6 +35,15 @@ elif docker compose version &> /dev/null; then
 else
     echo "Docker Compose not found. Please install Docker Compose before running this script."
     exit 1
+fi
+
+# Force cleanup with sudo if needed
+echo "Cleaning up existing containers..."
+if docker ps &>/dev/null; then
+    $COMPOSE_CMD down --remove-orphans 2>/dev/null || sudo $COMPOSE_CMD down --remove-orphans 2>/dev/null || true
+else
+    sudo docker stop digicert-library-app mysql 2>/dev/null || true
+    sudo docker rm -f digicert-library-app mysql 2>/dev/null || true
 fi
 
 # Check for Go
@@ -43,4 +69,46 @@ go mod tidy
 echo "Building and starting containers..."
 $COMPOSE_CMD up --build -d
 
-echo "App setup complete. To view logs, run: $COMPOSE_CMD logs -f"
+echo "Waiting for services to start..."
+sleep 10
+
+# Check if containers are actually running
+echo "Verifying containers are running..."
+if ! docker ps --format "table {{.Names}}\t{{.Status}}" | grep -E "(digicert-library-app|mysql)"; then
+    echo "❌ Some containers failed to start. Checking logs..."
+    $COMPOSE_CMD logs
+    exit 1
+fi
+
+# Wait for MySQL to be ready
+echo "Waiting for MySQL to be ready..."
+timeout=60
+while [ $timeout -gt 0 ]; do
+    if docker exec mysql mysqladmin ping -h localhost --silent 2>/dev/null; then
+        echo "✅ MySQL is ready!"
+        break
+    fi
+    echo "Waiting for MySQL... ($timeout seconds remaining)"
+    sleep 5
+    timeout=$((timeout-5))
+done
+
+if [ $timeout -le 0 ]; then
+    echo "❌ MySQL failed to start within 60 seconds"
+    $COMPOSE_CMD logs mysql
+    exit 1
+fi
+
+# Test if the app is responding
+echo "Testing app connectivity..."
+sleep 5
+if curl -f http://localhost:8080 &>/dev/null; then
+    echo "✅ App is running successfully at http://localhost:8080"
+else
+    echo "⚠️  App may still be starting. Check status with: $COMPOSE_CMD ps"
+    echo "📋 View logs with: $COMPOSE_CMD logs -f"
+fi
+
+echo "🎉 Setup complete!"
+echo "📱 App URL: http://localhost:8080"
+echo "🗄️  MySQL: localhost:3307"
