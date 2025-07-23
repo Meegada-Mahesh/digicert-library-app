@@ -34,11 +34,27 @@ digicert-library-app/
 | POST   | `/books`          | Create a new book            |
 | PUT    | `/books/{id}`     | Update a book                |
 | DELETE | `/books/{id}`     | Delete a book                |
-| GET    | `/health`         | Health check endpoint        |
+
+---
+## 🚀 Quick Start
+
+**For the fastest setup, use our automated script:**
+
+```bash
+./scripts/local_setup.sh
+```
+
+This script will:
+- Copy `.env.example` to `.env` if it doesn't exist
+- Build and start all services with Docker Compose
+- Set up the database automatically
+- Get your app running on `http://localhost:8080`
 
 ---
 
-## 🚀 How to Start (Docker Compose)
+## 🚀 Manual Setup (Docker Compose)
+
+If you prefer manual setup:
 
 1. **Copy `.env.example` to `.env` and fill in your DB credentials:**
     ```bash
@@ -105,10 +121,6 @@ curl -X PUT "http://localhost:8080/books/<BOOK_ID>" \
 ```bash
 curl -X DELETE "http://localhost:8080/books/<BOOK_ID>"
 ```
-
-### Health check
-```bash
-curl -X GET "http://localhost:8080/health"
 ```
 
 ---
