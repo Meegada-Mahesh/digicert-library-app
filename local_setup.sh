@@ -20,13 +20,6 @@ fi
 
 # sudo aa-remove-unknown
 
-# Test docker permissions
-if ! docker ps &>/dev/null; then
-    echo "❌ Docker permission issue detected. Trying to fix..."
-    sudo chmod 666 /var/run/docker.sock
-    newgrp docker
-fi
-
 # Check for Docker Compose (support both docker-compose and docker compose)
 if command -v docker-compose &> /dev/null; then
     COMPOSE_CMD="docker-compose"
@@ -37,14 +30,6 @@ else
     exit 1
 fi
 
-# Force cleanup with sudo if needed
-echo "Cleaning up existing containers..."
-if docker ps &>/dev/null; then
-    $COMPOSE_CMD down --remove-orphans 2>/dev/null || sudo $COMPOSE_CMD down --remove-orphans 2>/dev/null || true
-else
-    sudo docker stop digicert-library-app mysql 2>/dev/null || true
-    sudo docker rm -f digicert-library-app mysql 2>/dev/null || true
-fi
 
 # Check for Go
 if ! command -v go &> /dev/null; then

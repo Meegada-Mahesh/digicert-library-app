@@ -36,7 +36,7 @@ func LimitBodySizeMiddleware(next http.Handler) http.Handler {
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := r.Header.Get("Authorization")
-		if token != "Bearer your-secret-token" {
+		if token != "Bearer this-is-a-secret-token" {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}

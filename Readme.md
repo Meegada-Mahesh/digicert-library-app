@@ -48,7 +48,7 @@ Before running this application, ensure you have:
 - **Git** - to clone the repository
 
 ### Quick Prerequisites Check
-```bash
+```
 docker --version
 docker-compose --version  # or: docker compose version
 go version
@@ -61,13 +61,13 @@ go version
 **For the fastest setup, use our automated script:**
 
 ### Step 1: Make the setup script executable
-```bash
+```
 chmod +x local_setup.sh
 ```
 
 ### Step 2: Run the automated setup
-```bash
-local_setup.sh
+```
+./local_setup.sh
 ```
 
 ### Step 3: Access your application
@@ -87,23 +87,23 @@ This script will:
 If you prefer manual setup:
 
 1. **Copy `.env.example` to `.env` and fill in your DB credentials:**
-    ```bash
+    ```
     cp .env.example .env
     # Edit .env as needed
     ```
 
 2. **Build and start the app:**
-    ```bash
+    ```
     docker-compose up --build
     ```
 
 3. **View logs:**
-    ```bash
+    ```
     docker-compose logs -f
     ```
 
 4. **Stop the app:**
-    ```bash
+    ```
     docker-compose down
     ```
 
@@ -114,7 +114,7 @@ If you prefer manual setup:
 1. **Install Go (>= 1.24) and MySQL locally.**
 2. **Create a `.env` file with your DB credentials.**
 3. **Run the app:**
-    ```bash
+    ```
     go mod tidy
     go run main.go
     ```
@@ -124,33 +124,55 @@ If you prefer manual setup:
 ## 🧪 Sample cURL Requests
 
 ### Get all books (paginated)
-```bash
-curl -X GET "http://localhost:8080/books?page=1&limit=10"
+```
+curl -X GET "http://localhost:8080/books?page=1&limit=10" \
+  -H "Authorization: Bearer this-is-a-secret-token" \
+  -H "Content-Type: application/json"
 ```
 
 ### Get a book by ID
-```bash
-curl -X GET "http://localhost:8080/books/<BOOK_ID>"
+```
+curl -X GET "http://localhost:8080/books/1" \
+  -H "Authorization: Bearer this-is-a-secret-token" \
+  -H "Content-Type: application/json"
 ```
 
 ### Create a new book
-```bash
+```
 curl -X POST "http://localhost:8080/books" \
+  -H "Authorization: Bearer this-is-a-secret-token" \
   -H "Content-Type: application/json" \
-  -d '{"title": "Sample Book Title"}'
+  -d '{
+    "title": "Sample Book Title",
+    "author": "Sample Author",
+    "genre": "Fiction",
+    "isbn": "978-0123456789",
+    "published_year": 2023
+  }'
 ```
 
 ### Update a book
-```bash
+```
 curl -X PUT "http://localhost:8080/books/<BOOK_ID>" \
+  -H "Authorization: Bearer this-is-a-secret-token" \
   -H "Content-Type: application/json" \
-  -d '{"title": "Updated Book Title"}'
+  -d '{
+    "title": "Updated Book Title",
+    "author": "Updated Author",
+    "genre": "Non-Fiction"
+  }'
 ```
 
 ### Delete a book
-```bash
-curl -X DELETE "http://localhost:8080/books/<BOOK_ID>"
 ```
+curl -X DELETE "http://localhost:8080/books/<BOOK_ID>" \
+  -H "Authorization: Bearer this-is-a-secret-token"
+```
+
+### Testing without Authorization (should return 401)
+```
+curl -X GET "http://localhost:8080/books" \
+  -H "Content-Type: application/json"
 ```
 
 ---
@@ -192,13 +214,12 @@ curl -X DELETE "http://localhost:8080/books/<BOOK_ID>"
 ## 📚 Pagination Example
 
 To get page 2 with 10 books per page:
-```
+
 GET /books?page=2&limit=10
+
+---
+
 ```
-
----
-
----
 
 ## 🧹 Docker Cleanup (if needed)
 
@@ -211,12 +232,12 @@ sudo usermod -aG docker $USER
 newgrp docker
 
 sudo docker system prune -a --volumes
-bash local_setup.sh
+./local_setup.sh
 
 If you encounter issues or want a fresh start:
 
 ### Quick Cleanup (Recommended)
-```bash
+```
 # Stop and remove project containers
 docker-compose down -v
 
@@ -225,7 +246,7 @@ docker-compose down --rmi all -v
 ```
 
 ### Full Docker Cleanup (Use with caution)
-```bash
+```
 # Stop all containers
 docker stop $(docker ps -aq)
 
@@ -248,7 +269,7 @@ docker system prune -a --volumes
 1. Fork the repo.
 2. Clone and create your `.env` file.
 3. Run tests with:
-    ```bash
+    ```
     go test ./...
     ```
 4. Submit a pull request.
