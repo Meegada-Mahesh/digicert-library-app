@@ -218,7 +218,6 @@ GET /books?page=2&limit=10
 
 ---
 
-```
 
 ## 🧹 Docker Cleanup (if needed)
 
@@ -233,19 +232,20 @@ newgrp docker
 sudo docker system prune -a --volumes
 ./local_setup.sh
 
+---
+
 If you encounter issues or want a fresh start:
 
 ### Quick Cleanup (Recommended)
-```
+
 # Stop and remove project containers
 docker-compose down -v
 
 # Remove project images
 docker-compose down --rmi all -v
-```
 
 ### Full Docker Cleanup (Use with caution)
-```
+
 # Stop all containers
 docker stop $(docker ps -aq)
 
@@ -257,7 +257,6 @@ docker rmi $(docker images -q)
 
 # Clean up everything (containers, images, volumes, networks)
 docker system prune -a --volumes
-```
 
 **⚠️ Warning:** Full cleanup will remove ALL Docker data including other projects.
 
