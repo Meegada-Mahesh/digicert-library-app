@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -28,10 +27,11 @@ func InitBooksHandler(ctx context.Context, db *database.Database) *BooksHandler 
 func (b *BooksHandler) GetBooks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	ctx := r.Context()
+
 	pageParam := r.URL.Query().Get("page")
 	limitParam := r.URL.Query().Get("limit")
 
-	ctx := r.Context()
 	page := 1
 	limit := 10
 	if p, err := strconv.Atoi(pageParam); err == nil && p > 0 {
@@ -59,9 +59,10 @@ func (b *BooksHandler) GetBooks(w http.ResponseWriter, r *http.Request) {
 func (b *BooksHandler) GetBookByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	ctx := r.Context()
+
 	vars := mux.Vars(r)
 	id := vars["id"]
-	ctx := r.Context()
 	if _, err := uuid.Parse(id); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Invalid book ID format"})
@@ -84,6 +85,9 @@ func (b *BooksHandler) GetBookByID(w http.ResponseWriter, r *http.Request) {
 
 func (b *BooksHandler) CreateBook(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+
+	ctx := r.Context()
+
 	var newBook models.Book
 	if err := json.NewDecoder(r.Body).Decode(&newBook); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -103,10 +107,9 @@ func (b *BooksHandler) CreateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := b.db.CreateBook(r.Context(), newBook)
+	_, err := b.db.CreateBook(ctx, newBook)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Println("Error is", err)
 		json.NewEncoder(w).Encode(models.ErrorResponse{Error: "Couldn't create book"})
 		return
 	}
@@ -115,6 +118,9 @@ func (b *BooksHandler) CreateBook(w http.ResponseWriter, r *http.Request) {
 
 func (b *BooksHandler) UpdateBook(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+
+	ctx := r.Context()
+
 	var updateBook models.Book
 	if err := json.NewDecoder(r.Body).Decode(&updateBook); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -142,7 +148,7 @@ func (b *BooksHandler) UpdateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resultMsg, err := b.db.UpdateBook(r.Context(), id, updateBook)
+	resultMsg, err := b.db.UpdateBook(ctx, id, updateBook)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
@@ -158,6 +164,9 @@ func (b *BooksHandler) UpdateBook(w http.ResponseWriter, r *http.Request) {
 
 func (b *BooksHandler) DeleteBook(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+
+	ctx := r.Context()
+
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -167,7 +176,7 @@ func (b *BooksHandler) DeleteBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resultMsg, err := b.db.DeleteBook(r.Context(), id)
+	resultMsg, err := b.db.DeleteBook(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
